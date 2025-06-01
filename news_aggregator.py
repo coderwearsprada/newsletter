@@ -8,6 +8,7 @@ from sendgrid.helpers.mail import Mail, Email, To, Content
 import requests
 from bs4 import BeautifulSoup
 from config import *
+import re
 
 class NewsAggregator:
     def __init__(self):
@@ -101,14 +102,54 @@ class NewsAggregator:
     def _extract_title(self, content):
         """Extract article title from content"""
         print(f"[DEBUG] Extracting title from content: {content[:100]}...")
-        # Implement title extraction logic
-        return "Article Title"
+        try:
+            # Look for title patterns in the content
+            # Common patterns: "Title:", "Headline:", or first line of content
+            title_patterns = [
+                r'Title:\s*(.*?)(?:\n|$)',
+                r'Headline:\s*(.*?)(?:\n|$)',
+                r'^(.*?)(?:\n|$)'
+            ]
+            
+            for pattern in title_patterns:
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    title = match.group(1).strip()
+                    if title and len(title) > 5:  # Basic validation
+                        print(f"[DEBUG] Found title: {title}")
+                        return title
+            
+            print("[DEBUG] No title found in content")
+            return "Title not found"
+        except Exception as e:
+            print(f"[DEBUG] Error extracting title: {str(e)}")
+            return "Title extraction failed"
 
     def _extract_url(self, content):
         """Extract article URL from content"""
         print(f"[DEBUG] Extracting URL from content: {content[:100]}...")
-        # Implement URL extraction logic
-        return "https://example.com/article"
+        try:
+            # Look for URLs in the content
+            # Common patterns: "from [url]", "source: [url]", "read more: [url]", or just a plain URL
+            url_patterns = [
+                r'from\s+(https?://[^\s]+)',
+                r'source:\s*(https?://[^\s]+)',
+                r'read more:\s*(https?://[^\s]+)',
+                r'(https?://[^\s]+)'
+            ]
+            
+            for pattern in url_patterns:
+                match = re.search(pattern, content, re.IGNORECASE)
+                if match:
+                    url = match.group(1).strip('.,;:!?')
+                    print(f"[DEBUG] Found URL: {url}")
+                    return url
+            
+            print("[DEBUG] No URL found in content")
+            return "URL not found"
+        except Exception as e:
+            print(f"[DEBUG] Error extracting URL: {str(e)}")
+            return "URL extraction failed"
 
     def _generate_summary(self, content):
         """Generate a summary of the article using Perplexity"""
