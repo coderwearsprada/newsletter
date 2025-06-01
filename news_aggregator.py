@@ -101,11 +101,73 @@ class NewsAggregator:
         return articles
 
     def _is_relevant(self, verification_result):
-        """Determine if an article is relevant based on verification response"""
+        """Determine if an article is relevant based on semantic similarity"""
         print(f"[DEBUG] Checking relevance with result: {json.dumps(verification_result, indent=2)}")
-        # Implement relevance checking logic
-        # This is a simplified version
-        return True
+        try:
+            # Extract the verification content and topic
+            content = verification_result['choices'][0]['message']['content']
+            topic = content.split('Verify if this article is highly relevant to ')[1].split(':')[0].strip()
+            
+            # Use Perplexity to analyze semantic relevance
+            similarity_query = f"""Analyze if this article is semantically relevant to the topic of {topic}.
+            Consider:
+            1. Main themes and concepts
+            2. Direct and indirect relationships
+            3. Depth of coverage
+            4. Context and implications
+            
+            Article content: {content}
+            
+            Respond with a JSON object containing:
+            {{
+                "relevance_score": float (0-1),
+                "reasoning": "explanation of the relevance",
+                "key_themes": ["list", "of", "main", "themes"],
+                "is_relevant": boolean
+            }}"""
+            
+            print(f"[DEBUG] Making semantic similarity request to Perplexity API...")
+            similarity_response = requests.post(
+                'https://api.perplexity.ai/chat/completions',
+                headers=self.headers,
+                json={
+                    'model': 'sonar',
+                    'messages': [{'role': 'user', 'content': similarity_query}]
+                }
+            )
+            
+            if similarity_response.status_code == 200:
+                similarity_result = similarity_response.json()
+                analysis = similarity_result['choices'][0]['message']['content']
+                
+                try:
+                    # Parse the JSON response
+                    analysis_json = json.loads(analysis)
+                    
+                    print(f"[DEBUG] Semantic analysis results:")
+                    print(f"- Relevance score: {analysis_json.get('relevance_score', 0)}")
+                    print(f"- Reasoning: {analysis_json.get('reasoning', 'No reasoning provided')}")
+                    print(f"- Key themes: {analysis_json.get('key_themes', [])}")
+                    print(f"- Is relevant: {analysis_json.get('is_relevant', False)}")
+                    
+                    # Consider an article relevant if:
+                    # 1. The relevance score is above 0.6, or
+                    # 2. The analysis explicitly states it's relevant
+                    is_relevant = analysis_json.get('relevance_score', 0) > 0.6 or analysis_json.get('is_relevant', False)
+                    
+                    return is_relevant
+                    
+                except json.JSONDecodeError:
+                    print("[DEBUG] Failed to parse JSON response from semantic analysis")
+                    # Fallback to basic relevance check if JSON parsing fails
+                    return 'relevant' in analysis.lower() or 'related' in analysis.lower()
+            else:
+                print(f"[DEBUG] Error in semantic similarity request: {similarity_response.text}")
+                return True  # Default to True if API call fails
+                
+        except Exception as e:
+            print(f"[DEBUG] Error in semantic relevance check: {str(e)}")
+            return True  # Default to True in case of errors
 
     def _extract_title(self, content):
         """Extract article title from content"""
