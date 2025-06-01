@@ -241,18 +241,18 @@ def main():
     aggregator = NewsAggregator()
     
     # Schedule the daily digest to run at 8 AM
-    #print("[DEBUG] Scheduling daily digest for 8:00 AM")
-    #schedule.every().day.at("08:00").do(aggregator.run_daily_digest)
+    print("[DEBUG] Scheduling daily digest for 8:00 AM")
+    schedule.every().day.at("08:00").do(aggregator.run_daily_digest)
     
     # Run immediately on startup
     print("[DEBUG] Running initial digest")
     aggregator.run_daily_digest()
     
     # Keep the script running
-    #print("[DEBUG] Entering main loop")
-    #while True:
-    #    schedule.run_pending()
-    #    time.sleep(60)
+    print("[DEBUG] Entering main loop")
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
 
 if __name__ == "__main__":
     main() 
