@@ -67,8 +67,18 @@ class NewsAggregator:
             if 'search_results' in response:
                 for result in response['search_results']:
                     if 'url' in result and result['url']:
-                        urls.append(result['url'])
-                print(f"[DEBUG] Found URLs in search results: {urls}")
+                        # Check if the URL is from a trusted source
+                        url = result['url']
+                        if any(source in url.lower() for source in [s.lower() for s in TRUSTED_SOURCES]):
+                            urls.append(url)
+                            print(f"[DEBUG] Found URL from trusted source: {url}")
+                        else:
+                            print(f"[DEBUG] Skipping URL from untrusted source: {url}")
+                print(f"[DEBUG] Found {len(urls)} URLs from trusted sources")
+            
+            if not urls:
+                print("[DEBUG] No articles found from trusted sources")
+                return articles
             
             # Use Perplexity to verify relevance
             verification_query = f"Verify if this article is highly relevant to {topic}: {content}"
@@ -89,7 +99,7 @@ class NewsAggregator:
                 if self._is_relevant(verification_result):
                     article = {
                         'title': self._extract_title(content),
-                        'url': urls[0] if urls else "URL not found",
+                        'url': urls[0],  # Use the first trusted source URL
                         'summary': self._generate_summary(content),
                         'topic': topic
                     }
