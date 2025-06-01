@@ -27,9 +27,6 @@ TRUSTED_SOURCES = [
 # Default topics/keywords to track
 DEFAULT_TOPICS = [
     'artificial intelligence',
-    'machine learning',
-    'data science',
-    'technology innovation',
     'startup funding'
 ]
 
