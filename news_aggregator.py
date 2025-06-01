@@ -251,15 +251,48 @@ class NewsAggregator:
 
         print(f"[DEBUG] Preparing to send email with {len(articles)} articles")
         
-        # Create email content
-        content = "Here are today's relevant news articles:\n\n"
+        # Create HTML email content
+        html_content = """
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .article { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+                .topic { font-weight: bold; color: #2c3e50; font-size: 1.2em; }
+                .title { font-size: 1.1em; margin: 10px 0; }
+                .summary { margin: 10px 0; }
+                .source { color: #3498db; text-decoration: none; }
+                .source:hover { text-decoration: underline; }
+            </style>
+        </head>
+        <body>
+            <h2>Today's News Digest</h2>
+        """
+        
         for article in articles:
-            print(f"[DEBUG] article: {article}")
-            content += f"Topic: {article['topic']}\n"
-            content += f"Title: {article['title']}\n"
-            content += f"Summary: {article['summary']}\n"
-            content += f"Read more: {article['url']}\n\n"
-            content += "-" * 80 + "\n\n"
+            print(f"[DEBUG] Processing article: {article}")
+            html_content += f"""
+            <div class="article">
+                <div class="topic">Topic: {article['topic']}</div>
+                <div class="title">{article['title']}</div>
+                <div class="summary">{article['summary']}</div>
+                <a href="{article['url']}" class="source">Source</a>
+            </div>
+            """
+
+        html_content += """
+        </body>
+        </html>
+        """
+
+        # Create plain text version for email clients that don't support HTML
+        plain_content = "Here are today's relevant news articles:\n\n"
+        for article in articles:
+            plain_content += f"Topic: {article['topic']}\n"
+            plain_content += f"Title: {article['title']}\n"
+            plain_content += f"Summary: {article['summary']}\n"
+            plain_content += f"Source: {article['url']}\n\n"
+            plain_content += "-" * 80 + "\n\n"
 
         # Create SendGrid message
         print("[DEBUG] Creating SendGrid message")
@@ -270,7 +303,8 @@ class NewsAggregator:
             from_email=from_email,
             to_emails=to_email,
             subject=f'Daily News Digest - {datetime.now().strftime("%Y-%m-%d")}',
-            plain_text_content=content
+            plain_text_content=plain_content,
+            html_content=html_content
         )
 
         # Debug print the email object (excluding API key)
@@ -278,7 +312,10 @@ class NewsAggregator:
             'from': {'email': from_email.email, 'name': from_email.name},
             'subject': message.subject,
             'personalizations': [{'to': [{'email': to_email.email}]}],
-            'content': [{'type': 'text/plain', 'value': content}]
+            'content': [
+                {'type': 'text/plain', 'value': plain_content},
+                {'type': 'text/html', 'value': html_content}
+            ]
         })
 
         # Send email
