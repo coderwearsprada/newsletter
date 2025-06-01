@@ -152,7 +152,7 @@ class NewsAggregator:
 
         # Create SendGrid message
         print("[DEBUG] Creating SendGrid message")
-        from_email = Email("yunzhangspotify@gmail.com", "News Aggregator")
+        from_email = Email(EMAIL_SENDER, "News Aggregator")
         to_email = To(self.recipient_email)
         
         message = Mail(
