@@ -21,12 +21,19 @@ TRUSTED_SOURCES = [
     'economist.com',
     'cnbc.com',
     'bbc.com',
-    'guardian.com'
+    'nytimes.com',
+    'washingtonpost.com',
+    'thetimes.co.uk',
+    'telegraph.co.uk',
+    'theinformation.com',
+    'medium.com',
+    'techcrunch.com'
 ]
 
 # Default topics/keywords to track
 DEFAULT_TOPICS = [
     'artificial intelligence',
+    'AI coding assistant',
     'startup funding'
 ]
 
