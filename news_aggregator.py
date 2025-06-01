@@ -62,6 +62,14 @@ class NewsAggregator:
             content = response['choices'][0]['message']['content']
             print(f"[DEBUG] Extracted content: {content[:200]}...")
             
+            # Extract URLs from search_results
+            urls = []
+            if 'search_results' in response:
+                for result in response['search_results']:
+                    if 'url' in result and result['url']:
+                        urls.append(result['url'])
+                print(f"[DEBUG] Found URLs in search results: {urls}")
+            
             # Use Perplexity to verify relevance
             verification_query = f"Verify if this article is highly relevant to {topic}: {content}"
             print(f"[DEBUG] Making verification request to Perplexity API...")
@@ -81,7 +89,7 @@ class NewsAggregator:
                 if self._is_relevant(verification_result):
                     article = {
                         'title': self._extract_title(content),
-                        'url': self._extract_url(content),
+                        'url': urls[0] if urls else "URL not found",
                         'summary': self._generate_summary(content),
                         'topic': topic
                     }
