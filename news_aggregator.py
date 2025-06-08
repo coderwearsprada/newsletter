@@ -2,13 +2,18 @@ import os
 import json
 import schedule
 import time
+import base64
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
 import requests
 from bs4 import BeautifulSoup
 from config import *
 import re
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
 
 class NewsAggregator:
     def __init__(self):
@@ -17,10 +22,46 @@ class NewsAggregator:
             'Authorization': f'Bearer {self.perplexity_api_key}',
             'Content-Type': 'application/json'
         }
-        self.sg = SendGridAPIClient(SENDGRID_API_KEY)
+        self.gmail_service = self._get_gmail_service()
         self.recipient_email = EMAIL_RECIPIENT
         print(f"[DEBUG] Initialized NewsAggregator with Perplexity API key: {self.perplexity_api_key[:5]}...")
-        print(f"[DEBUG] Initialized SendGrid client")
+        print(f"[DEBUG] Initialized Gmail API client")
+
+    def _get_gmail_service(self):
+        """Set up Gmail API service"""
+        creds = None
+        # The file token.json stores the user's access and refresh tokens
+        if os.path.exists(GMAIL_TOKEN_FILE):
+            creds = Credentials.from_authorized_user_file(GMAIL_TOKEN_FILE, GMAIL_SCOPES)
+        
+        # If there are no (valid) credentials available, let the user log in
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    GMAIL_CREDENTIALS_FILE, GMAIL_SCOPES)
+                creds = flow.run_local_server(port=0)
+            # Save the credentials for the next run
+            with open(GMAIL_TOKEN_FILE, 'w') as token:
+                token.write(creds.to_json())
+
+        return build('gmail', 'v1', credentials=creds)
+
+    def _create_message(self, sender, to, subject, html_content, plain_content):
+        """Create a message for an email."""
+        message = MIMEMultipart('alternative')
+        message['to'] = to
+        message['from'] = sender
+        message['subject'] = subject
+
+        # Attach both plain text and HTML versions
+        message.attach(MIMEText(plain_content, 'plain'))
+        message.attach(MIMEText(html_content, 'html'))
+
+        # Encode the message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        return {'raw': raw_message}
 
     def search_news(self, topics):
         """Search for news articles using Perplexity API"""
@@ -69,11 +110,11 @@ class NewsAggregator:
                     if 'url' in result and result['url']:
                         # Check if the URL is from a trusted source
                         url = result['url']
-                        if any(source in url.lower() for source in [s.lower() for s in TRUSTED_SOURCES]):
-                            urls.append(url)
-                            print(f"[DEBUG] Found URL from trusted source: {url}")
-                        else:
-                            print(f"[DEBUG] Skipping URL from untrusted source: {url}")
+                        #if any(source in url.lower() for source in [s.lower() for s in TRUSTED_SOURCES]):
+                        urls.append(url)
+                        #    print(f"[DEBUG] Found URL from trusted source: {url}")
+                        #else:
+                        #    print(f"[DEBUG] Skipping URL from untrusted source: {url}")
                 print(f"[DEBUG] Found {len(urls)} URLs from trusted sources")
             
             if not urls:
@@ -304,39 +345,25 @@ class NewsAggregator:
             plain_content += f"Source: {article['url']}\n\n"
             plain_content += "-" * 80 + "\n\n"
 
-        # Create SendGrid message
-        print("[DEBUG] Creating SendGrid message")
-        from_email = Email(EMAIL_SENDER, "News Aggregator")
-        to_email = To(self.recipient_email)
-        
-        message = Mail(
-            from_email=from_email,
-            to_emails=to_email,
-            subject=f'Daily News Digest - {datetime.now().strftime("%Y-%m-%d")}',
-            plain_text_content=plain_content,
-            html_content=html_content
-        )
-
-        # Debug print the email object (excluding API key)
-        print("[DEBUG] email:", {
-            'from': {'email': from_email.email, 'name': from_email.name},
-            'subject': message.subject,
-            'personalizations': [{'to': [{'email': to_email.email}]}],
-            'content': [
-                {'type': 'text/plain', 'value': plain_content},
-                {'type': 'text/html', 'value': html_content}
-            ]
-        })
-
-        # Send email
-        print("[DEBUG] Sending email via SendGrid...")
+        # Create and send the email
         try:
-            response = self.sg.send(message)
-            print(f"[DEBUG] Email sent successfully! Status code: {response.status_code}")
+            message = self._create_message(
+                EMAIL_SENDER,
+                self.recipient_email,
+                f'Daily News Digest - {datetime.now().strftime("%Y-%m-%d")}',
+                html_content,
+                plain_content
+            )
+            
+            print("[DEBUG] Sending email via Gmail API...")
+            sent_message = self.gmail_service.users().messages().send(
+                userId='me',
+                body=message
+            ).execute()
+            
+            print(f"[DEBUG] Email sent successfully! Message ID: {sent_message['id']}")
         except Exception as e:
             print(f"[DEBUG] Error sending email: {str(e)}")
-            if hasattr(e, 'body'):
-                print(f"[DEBUG] Error details: {e.body}")
 
     def run_daily_digest(self):
         """Run the daily news digest process"""

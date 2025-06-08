@@ -1,5 +1,7 @@
 # Environment variables
 .env
+credentials.json
+token.json
 
 # Python
 __pycache__/

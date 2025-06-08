@@ -4,15 +4,20 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Perplexity API configuration
+# Perplexity API Configuration
 PERPLEXITY_API_KEY = os.getenv('PERPLEXITY_API_KEY')
 
-# Email configuration
-SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+# Gmail API Configuration
+GMAIL_CREDENTIALS_FILE = os.getenv('GMAIL_CREDENTIALS_FILE', 'credentials.json')
+GMAIL_TOKEN_FILE = os.getenv('GMAIL_TOKEN_FILE', 'token.json')
+GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+
+# Email Configuration
 EMAIL_SENDER = os.getenv('EMAIL_SENDER')
 EMAIL_RECIPIENT = os.getenv('EMAIL_RECIPIENT')
 
-# News configuration
+# News Configuration
+NEWS_TIME_WINDOW = 24  # hours
 TRUSTED_SOURCES = [
     'reuters.com',
     'bloomberg.com',
@@ -30,12 +35,8 @@ TRUSTED_SOURCES = [
     'techcrunch.com'
 ]
 
-# Default topics/keywords to track
 DEFAULT_TOPICS = [
-    'artificial intelligence',
-    'AI coding assistant',
-    'startup funding'
-]
-
-# Time window for news (in hours)
-NEWS_TIME_WINDOW = 24 
+    'AI powered developer tools'
+    'startup funding',
+    'crypto'
+] 
